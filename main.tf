@@ -61,3 +61,69 @@ resource "aws_route_table_association" "b" {
   subnet_id      = aws_subnet.public_b.id
   route_table_id = aws_route_table.public_rt.id
 }
+
+resource "aws_instance" "nginx_1" {
+  ami                    = data.aws_ami.ubuntu.id
+  instance_type          = "t3.micro"
+  subnet_id              = aws_subnet.public_a.id
+  vpc_security_group_ids = [aws_security_group.nginx_sg.id]
+
+  iam_instance_profile = aws_iam_instance_profile.ec2_profile.name
+
+  user_data = <<-EOF
+    #!/bin/bash
+    apt update -y
+    apt install nginx -y
+    systemctl enable nginx
+    systemctl start nginx
+    echo "Hello from nginx-1 (SSM enabled)" > /var/www/html/index.html
+  EOF
+
+  tags = {
+    Name = "nginx-1"
+  }
+}
+
+resource "aws_instance" "nginx_2" {
+  ami                    = data.aws_ami.ubuntu.id
+  instance_type          = "t3.micro"
+  subnet_id              = aws_subnet.public_b.id
+  vpc_security_group_ids = [aws_security_group.nginx_sg.id]
+
+  iam_instance_profile = aws_iam_instance_profile.ec2_profile.name
+
+  user_data = <<-EOF
+    #!/bin/bash
+    apt update -y
+    apt install nginx -y
+    systemctl enable nginx
+    systemctl start nginx
+    echo "Hello from nginx-2 (SSM enabled)" > /var/www/html/index.html
+  EOF
+
+  tags = {
+    Name = "nginx-2"
+  }
+}
+
+resource "aws_security_group" "nginx_sg" {
+  name   = "nginx-sg"
+  vpc_id = aws_vpc.main.id
+
+  ingress {
+    description = "HTTP"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  # ❌ REMOVE SSH RULE COMPLETELY
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
