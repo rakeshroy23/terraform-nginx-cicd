@@ -51,6 +51,25 @@ resource "aws_route_table" "public_rt" {
     Name = "public-rt"
   }
 }
+resource "aws_subnet" "private_a" {
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = "10.0.11.0/24"
+  availability_zone = "ap-south-1a"
+
+  tags = {
+    Name = "private-subnet-a"
+  }
+}
+
+resource "aws_subnet" "private_b" {
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = "10.0.12.0/24"
+  availability_zone = "ap-south-1b"
+
+  tags = {
+    Name = "private-subnet-b"
+  }
+}
 
 resource "aws_route_table_association" "a" {
   subnet_id      = aws_subnet.public_a.id
@@ -85,10 +104,12 @@ data "aws_ami" "ubuntu" {
 resource "aws_instance" "nginx_1" {
   ami                    = data.aws_ami.ubuntu.id
   instance_type          = "t3.micro"
-  subnet_id              = aws_subnet.public_a.id
+  subnet_id              = aws_subnet.private_a.id
   vpc_security_group_ids = [aws_security_group.nginx_sg.id]
 
   iam_instance_profile = aws_iam_instance_profile.ec2_profile.name
+
+  associate_public_ip_address = false
 
   user_data = <<-EOF
     #!/bin/bash
@@ -96,7 +117,7 @@ resource "aws_instance" "nginx_1" {
     apt install nginx -y
     systemctl enable nginx
     systemctl start nginx
-    echo "Hello from nginx-1 (SSM enabled)" > /var/www/html/index.html
+    echo "Hello from private-nginx-1" > /var/www/html/index.html
   EOF
 
   tags = {
@@ -107,10 +128,12 @@ resource "aws_instance" "nginx_1" {
 resource "aws_instance" "nginx_2" {
   ami                    = data.aws_ami.ubuntu.id
   instance_type          = "t3.micro"
-  subnet_id              = aws_subnet.public_b.id
+  subnet_id              = aws_subnet.private_b.id
   vpc_security_group_ids = [aws_security_group.nginx_sg.id]
 
   iam_instance_profile = aws_iam_instance_profile.ec2_profile.name
+
+  associate_public_ip_address = false
 
   user_data = <<-EOF
     #!/bin/bash
@@ -118,7 +141,7 @@ resource "aws_instance" "nginx_2" {
     apt install nginx -y
     systemctl enable nginx
     systemctl start nginx
-    echo "Hello from nginx-2 (SSM enabled)" > /var/www/html/index.html
+    echo "Hello from private-nginx-2" > /var/www/html/index.html
   EOF
 
   tags = {
